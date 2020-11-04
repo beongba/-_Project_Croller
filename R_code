@@ -1,0 +1,494 @@
+setwd("C:\\Users\\rkdtj\\Desktop\\R_실습\\오늘의집")
+getwd()
+
+library(KoNLP)
+library(wordcloud)
+library(wordcloud2)
+library(stringr)
+library(tm)
+library(arulesViz)
+library(readxl)
+library(arules)
+library(igraph)
+useNIADic()
+
+
+# 텍스트 파일 불러오기(엑셀은 크기가 커서 오류뜸)
+data <- readLines('Source_data.txt', encoding='UTF-8')
+head(data, 10)
+length(data)
+data1 <- unique(data)
+length(data1)
+
+
+# ★사전 만들어야함 ( ※20평이 숫자로만 나타남, 셀프와 인테리어 나뉨 등등)
+
+mergeUserDic(data.frame(readLines("hash2.txt"), "ncn"))
+mergeUserDic(data.frame(readLines("가구_dic.txt"), "ncn"))
+mergeUserDic(data.frame(readLines("방_dic.txt"), "ncn"))
+mergeUserDic(data.frame(readLines("브랜드_dic.txt"), "ncn"))
+mergeUserDic(data.frame(readLines("색상_dic.txt"), "ncn"))
+mergeUserDic(data.frame(readLines("소재_dic.txt"), "ncn"))
+mergeUserDic(data.frame(readLines("주거형태_dic.txt"), "ncn"))
+
+# 문장 뒷부분에 위치하는 해쉬태그를 잡아내기위한 처리
+
+data2 <- gsub('디자인 추천', '디자인추천에', data1)
+data2 <- gsub('가구 배치', '가구배치', data2)
+data2 <- gsub('원룸', '원룸에', data2)
+data2 <- gsub('소파', '소파에', data2)
+data2 <- gsub('셀프인테리어', '셀프인테리어에', data2)
+data2 <- gsub('기타가구', '기타가구에', data2)
+data2 <- gsub('단독주택', '단독주택에', data2)
+data2 <- gsub('아파트', '아파트에', data2)
+data2 <- gsub('거실', '거실에', data2)
+data2 <- gsub('TV', 'TV에', data2)
+data2 <- gsub('가구배치/이동', '가구배치/이동에', data2)
+data2 <- gsub('리모델링/올수리', '리모델링/올수리에', data2)
+data2 <- gsub('견적', '견적에', data2)
+data2 <- gsub('기타가구/가전', '기타가구/가전에', data2)
+data2 <- gsub('수리/복구', '수리/복구에', data2)
+data2 <- gsub('몰딩', '몰딩에', data2)
+data2 <- gsub('샷시/창호', '샷시/창호에', data2)
+data2 <- gsub('외관/외벽', '외관/외벽에', data2)
+data2 <- gsub('업체 추천', '업체추천에', data2)
+data2 <- gsub('장판', '장판에', data2)
+data2 <- gsub('화장실', '화장실에', data2)
+data2 <- gsub('수전/싱크대', '수전/싱크대', data2)
+data2 <- gsub('기타청소', '기타청소에', data2)
+data2 <- gsub('입주청소', '입주청소에', data2)
+data2 <- gsub('철거', '철거에', data2)
+data2 <- gsub('필름', '필름에', data2)
+data2 <- gsub('주방', '주방에', data2)
+data2 <- gsub(' 벽', ' 벽면', data2)
+data2 <- gsub('벽면지', '벽지', data2)
+data2 <- gsub('벽면걸이', '벽걸이', data2)
+data2 <- gsub('벽면면', '벽면', data2)
+data2 <- gsub('벽면선반', '벽선반', data2)
+head(data2, 50)
+
+#키워드 추출
+data3 <- extractNoun(data2)
+data4 <- lapply(data3, function(x) {gsub('[^[:alnum:][:blank:]]', '',x)})
+data4 <- lapply(data4, function(x) {gsub(paste(c('Tv','TV','tv','티비', '텔레비젼','텔레비전'), collapse = '|'), '티비',x)})
+data4 <- lapply(data4, function(x) {gsub('원룸\\S*', '원룸', x)})
+data4 <- lapply(data4, function(x) {gsub('소파\\S*', '소파', x)})
+data4 <- lapply(data4, function(x) {gsub('거실\\S*', '거실', x)})
+data4 <- lapply(data4, function(x) {gsub('장판\\S*', '장판', x)})
+data4 <- lapply(data4, function(x) {gsub('화장실\\S*', '화장실', x)})
+data4 <- lapply(data4, function(x) {gsub('철거\\S*', '철거', x)})
+data4 <- lapply(data4, function(x) {gsub('필름\\S*', '필름', x)})
+data4 <- lapply(data4, function(x) {gsub('주방\\S*', '주방', x)})
+data4 <- lapply(data4, function(x) {gsub('몰딩\\S*', '몰딩', x)})
+data4 <- lapply(data4, function(x) {gsub('철거\\S*', '철거', x)})
+data4 <- lapply(data4, function(x) {gsub('아파트\\S*', '아파트', x)})
+data4 <- lapply(data4, function(x) {gsub('[A-z]', '', x)})
+head(data4, 50)
+
+
+#한 줄에서 중복되는 단어 제거
+data4 <- lapply(data4, unique)
+head(data4, 150)
+
+
+#불용어 제거
+data5 <- lapply(data4, function(x) {gsub(paste(c('벽지','도배','필름','장판', '시트지'), collapse = '|'), '도배/벽지',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('무타공','무타'), collapse = '|'), '무타공',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('인테리어','인테리'), collapse = '|'), '인테리어',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('10평미', '10평미만'), collapse = '|'), '10평미만',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('10', '10평', '10평대'), collapse = '|'), '10평대',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('20', '20평', '20평대'), collapse = '|'), '20평대',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('30', '30평', '30평대'), collapse = '|'), '30평대',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('40', '40평', '40평대'), collapse = '|'), '40평대',x)})
+data5 <- lapply(data5, function(x) {gsub(paste(c('50', '50평', '50평대'), collapse = '|'), '50평대이상',x)})
+data5 <- lapply(data5, function(x) {gsub('10평대미만', '10평미만', x)})
+data5 <- lapply(data5, function(x) {gsub('10평대대', '10평대', x)})
+data5 <- lapply(data5, function(x) {gsub('20평대대', '20평대', x)})
+data5 <- lapply(data5, function(x) {gsub('30평대대', '30평대', x)})
+data5 <- lapply(data5, function(x) {gsub('40평대대', '40평대', x)})
+data5 <- lapply(data5, function(x) {gsub('50평대대', '50평대이상', x)})
+data5 <- lapply(data5, function(x) {gsub('ㅠ', '', x)})
+data5 <- lapply(data5, function(x) {gsub('ㅜ', '', x)})
+data5 <- lapply(data5, function(x) {gsub('ㅍ', '', x)})
+head(data5, 150)
+
+# 2글자 ~ 8글자만빼고 모두 제거
+data6 <- lapply(data5, function(x) {Filter(function(y) {nchar(y) <= 8 && nchar(y) > 1 },x)})
+head(data6, 150)
+
+#불용어 txt로 제거
+cantwrite <- readLines("cantwrite.txt", encoding='UTF-8')
+cnt_txt <- length(cantwrite)
+cnt_txt
+
+
+for(i in 1:cnt_txt) {
+data7 <- lapply(data6, function(x) {gsub(cantwrite[i], "", x)})}
+head(data7, 50)
+
+==================================================================
+display.brewer.all()
+
+#워드클라우드 셋팅(table)
+b <- table(unlist(data7))
+b
+length(unlist(data7))
+x <- head(sort(b, decreasing=T), 15)
+x
+#웹으로 그리기
+wordcloud2(x, gridSize=0.5, size=1, shape='circle')
+#R로 그리기
+palete <- brewer.pal(7, 'Set2')
+wordcloud(names(x), freq=x, scale=c(3, 1), rot.per=0.2, min.freq=100, 
+random.order=F, random.color=T, colors=palete)
+
+getwd( )
+savePlot("전체_워드클라우드.png" , type="png")
+==================================================================
+
+
+data8 <- format(data7, justify='none')
+head(data8, 10)
+data10 <- VCorpus(VectorSource(data8))
+inspect(data10)
+
+
+data11 <- TermDocumentMatrix(data10, control = list(wordLengths = c(2, 10)))
+data12 <- as.matrix(data11)
+getwd( )
+savePlot("상위지지도.png" , type="png")
+
+#상관관계
+findFreqTerms(data11, 100)
+findAssocs(data11, '10평대', 0.05)
+
+#-----------------------------------
+#트랜잭션으로 변환
+wordtran <- as(data7, "transactions")
+wordtran
+class(wordtran)
+summary(wordtran)
+
+itemFrequencyPlot(wordtran, topN = 29, ,main = "상위 지지도 순위")
+
+
+
+arules::inspect(wordtran)
+wordtab <- crossTable(wordtran)
+wordtab
+
+
+edgelist <- graph.adjacency(wordtab,weighted=T,mode="undirected")
+edgelist
+
+ares <- apriori(wordtran, parameter=list(supp=0.01, conf=1))
+arules::inspect(ares)
+
+rule1 <- labels(ares, ruleSep=" ")
+rule2 <- sapply(rule1, strsplit, " ", USE.NAMES=F)
+rule2
+
+rulematrix <- do.call("rbind", rule2)
+rulematrix
+
+#igraph 1번
+edge1 <- graph.edgelist(rulematrix[ c(1:30),],directed=F)
+degree(edge1)
+plot.igraph(edge1, vertex.label=V(edge1)$name, vertex.label.cex=0.6, vertex.size=20)
+
+#igraph 2번
+edge2 <- simplify(edge1)
+data1111 <- degree(edge2)
+V(edge2)$degree <-degree(edge2)
+V(edge2)$label.cex <- 10*(V(edge2)$degree / max(V(edge2)$degree))
+V(edge2)$size <- 5*(V(edge2)$degree / max(V(edge2)$degree))
+plot(edge2)
+
+
+==========================================================================================
+##주거형태
+category1 <- unlist(data7)
+head(category1, 10)
+category2 <- gsub(paste(c("자취","자취러","자취생","자취방","첫자취",'자취하는데'),collapse='|'), "자취", category1)
+category2 <- gsub(paste(c("전세","전셋집","전세집"),collapse='|'), "전세", category2)
+category2 <- gsub(paste(c("주택","단독주택","목조주택"),collapse='|'), "주택", category2)
+category2 <- gsub(paste(c("신혼","신혼집"),collapse='|'), "신혼", category2)
+category2 <- gsub(paste(c("원룸","원룸형","평원룸"),collapse='|'), "원룸", category2)
+category2 <- gsub(paste(c("아파트","평아파트","주공아파트"),collapse='|'), "아파트", category2)
+category2 <- gsub(paste(c("투룸","투룸형"),collapse='|'), "투룸", category2)
+category2 <- gsub('[0-9]', '', category2)
+head(category2, 50)
+
+pnt <- readLines('주거형태.txt', encoding='UTF-8')
+pnt
+a <- grep(paste(pnt, collapse='|'), category2, value=T)
+head(a, 30)
+b <- table(a)
+head(b , 30)
+x <- head(sort(b, decreasing=T), 12)
+x
+
+#웹으로 그리기
+wordcloud2(x, gridSize=0.5, size=1, shape='circle')
+library(brew.pal)
+library(wordcloud)
+
+#R로 그리기
+library(wordcloud)
+palete <- brewer.pal(7, 'Set2')
+wordcloud(names(x), freq=x, scale=c(5, 2), rot.per=0.25, min.freq=3, 
+random.order=F, random.color=T, colors=palete)
+
+getwd( )
+savePlot("주거형태_워드클라우드.png" , type="png")
+================================================
+##철제
+category2 <- gsub(paste(c("철제","철재"),collapse='|'), "철제", category1)
+category2 <- gsub(paste(c("샌드위치","샌드위치 판넬"),collapse='|'), "샌드위치판넬", category2)
+category2 <- gsub(paste(c("스테인","스테인리스","스댕"),collapse='|'),"스테인리스", category2)
+category2 <- gsub(paste(c("엠보싱","엠보"),collapse='|'), "엠보싱", category2)
+category2 <- gsub(paste(c("펠트","부직포"),collapse='|'), "펠트", category2)
+category2 <- gsub('재질', '', category2)
+category2 <- gsub('커튼', '', category2)
+
+pnt <- readLines('소재.txt', encoding='UTF-8')
+pnt
+a <- grep(paste(pnt, collapse='|'), category2, value=T)
+head(a, 30)
+b <- table(a)
+head(b , 30)
+
+x <- head(sort(b, decreasing=T), 15)
+x
+
+#웹으로 그리기
+wordcloud2(x, gridSize=0.5, size=1, shape='circle')
+library(brew.pal)
+library(wordcloud)
+
+#R로 그리기
+palete <- brewer.pal(7, 'Set2')
+wordcloud(names(x), freq=x, scale=c(5, 2), rot.per=0.25, min.freq=3, 
+random.order=F, random.color=T, colors=palete)
+
+getwd( )
+savePlot("소재_워드클라우드.png" , type="png")
+=================================================
+#색상
+category2 <- gsub(paste(c("주황","주황색","연주황","오렌지","오렌지색"),collapse='|'),   "주황색", category1)
+category2 <- gsub(paste(c("청록","청록색"),collapse='|'),   "청록색", category2)
+category2 <- gsub(paste(c("체리","체리색"),collapse='|'),   "체리색", category2)
+category2 <- gsub(paste(c("카키","카키색","카키차콜"),collapse='|'),   "카키색", category2)
+category2 <- gsub(paste(c("차콜","진한차콜색"),collapse='|'),   "차콜색", category2)
+category2 <- gsub(paste(c("코랄색","코랄"),collapse='|'),   "코랄색", category2)
+category2 <- gsub(paste(c("파랑색","파란","파랑","블루","회색파랑","연청색","딥블루톤","딥코발트","그레이블루"),collapse='|'),   "파랑색", category2)
+category2 <- gsub(paste(c("남색짙은파랑","다크네이비","남색","네이비","그레이네이비"),collapse='|'),   "남색", category2)
+category2 <- gsub(paste(c("팥죽색","버건디"),collapse='|'),   "버건디", category2)
+category2 <- gsub(paste(c("패턴","헤링본","스트라이프"),collapse='|'),   "패턴", category2)
+category2 <- gsub(paste(c("투톤","블랙앤화이트","핑크화이트"),collapse='|'),   "투톤", category2)
+category2 <- gsub(paste(c("화이트","흰","흰색","하얀","포스트쉬머플랫화이트","백색","메이플화이트","베이지화이트"),collapse='|'),   "흰색", category2)
+category2 <- gsub(paste(c("핑크","핑크색","핑크펄","핑크화이트","분홍색","연분홍"),collapse='|'),   "분홍색", category2)
+category2 <- gsub(paste(c("하늘","회색하늘빛","하늘색","베이비블루"),collapse='|'),   "하늘색", category2)
+category2 <- gsub(paste(c("황금","골드","금색","로즈골드"),collapse='|'),   "금색", category2)
+category2 <- gsub(paste(c("황토색","카멜","브론즈"),collapse='|'),   "황토색", category2)
+category2 <- gsub(paste(c("빨강","빨강색","빨간색","붉은빛","진그레이붉은"),collapse='|'),   "빨간색", category2)
+category2 <- gsub(paste(c("아이보리","크림","베이지","베이지색","비스킷색아이보리","오트밀"),collapse='|'),   "아이보리색", category2)
+category2 <- gsub(paste(c("연보라","보라색","라벤더","라벤더색","자색"),collapse='|'),   "보라색", category2)
+category2 <- gsub(paste(c("옥색","연두","연두색"),collapse='|'),   "연두색", category2)
+category2 <- gsub(paste(c("올리브","올리브색","올리브그린","초록","초록색","녹색","딥그린"),collapse='|'),   "초록색", category2)
+category2 <- gsub(paste(c("월넛","월넛화이트","월넛색","월넛화이트골드"),collapse='|'),   "월넛색", category2)
+category2 <- gsub(paste(c("검은색","검정","먹색","블랙","우드블랙","올블랙"),collapse='|'),   "검정색", category2)
+category2 <- gsub(paste(c("그레이","다크그레이","차콜그레이","다크그레이","웜그레이","연회색","쥐색","진회색","회색","청회색","화이트그레이","실버","그레이우드화이트"),collapse='|'),   "회색", category2)
+category2 <- gsub(paste(c("노란","노란빛","노란색","노랑","옐로"),collapse='|'),   "노랑색", category2)
+category2 <- gsub(paste(c("밤색","브라운","고동색","옅은갈색","진갈색","짙은우드","흑갈색"),collapse='|'),   "갈색", category2)
+
+pnt <- readLines('색상.txt', encoding='UTF-8')
+pnt
+a <- grep(paste(pnt, collapse='|'), category2, value=T)
+head(a, 30)
+b <- table(a)
+head(b , 30)
+
+x <- head(sort(b, decreasing=T), 15)
+x
+
+#웹으로 그리기
+wordcloud2(x, gridSize=0.5, size=1, shape='circle')
+#R로 그리기
+palete <- brewer.pal(7, 'Set2')
+wordcloud(names(x), freq=x, scale=c(5, 2), rot.per=0.25, min.freq=3, 
+random.order=F, random.color=T, colors=palete)
+
+getwd( )
+savePlot("색상_워드클라우드.png" , type="png")
+==============================================
+#브랜드
+category2 <- gsub(paste(c("한샘","한샘인테리어"),collapse='|'), "한샘", category1)
+category2 <- gsub(paste(c("비스포크","비스포크냉장고"),collapse='|'), "삼성", category2)
+category2 <- gsub('아리아퍼니쳐', "아리아퍼니처", category2)
+category2 <- gsub(paste(c("에이스","에이스침대"),collapse='|'), "에이스", category2)
+category2 <- gsub("엘지",, "LG", category2)
+category2 <- gsub('이케아', "IKEA", category2)
+
+pnt <- readLines('브랜드.txt', encoding='UTF-8')
+pnt
+a <- grep(paste(pnt, collapse='|'), category2, value=T)
+head(a, 30)
+b <- table(a)
+head(b , 30)
+
+x <- head(sort(b, decreasing=T), 15)
+x
+#웹으로 그리기
+wordcloud2(x, gridSize=0.5, size=1, shape='circle')
+#R로 그리기
+palete <- brewer.pal(7, 'Set1')
+wordcloud(names(x), freq=x, scale=c(5, 2), rot.per=0.25, min.freq=1, 
+random.order=F, random.color=T, colors=palete)
+
+getwd( )
+savePlot("브랜드_워드클라우드.png" , type="png")
+================================================
+#방
+category2 <- gsub('를', '', category1)
+category2 <- gsub('어디', '', category2)
+category2 <- gsub('하려', '', category2)
+category2 <- gsub('이거', '', category2)
+category2 <- gsub('뭔가', '', category2)
+category2 <- gsub('잘아시는분', '', category2)
+category2 <- gsub('고민', '', category2)
+category2 <- gsub('해주', '', category2)
+category2 <- gsub('잘아시는분', '', category2)
+category2 <- gsub('도와주세요', '', category2)
+category2 <- gsub('문의', '', category2)
+category2 <- gsub('조언', '', category2)
+category2 <- gsub('위치', '', category2)
+category2 <- gsub('질문', '', category2)
+category2 <- gsub('잘아시는분', '', category2)
+category2 <- gsub('이요', '', category2)
+category2 <- gsub('부탁', '', category2)
+category2 <- gsub('드립', '', category2)
+category2 <- gsub('전문가','', category2)
+category2 <- gsub('주방에','주방', category2)
+
+category2 <- gsub(paste(c("지하","지하창고"),collapse='|'), "지하창고", category2)
+category2 <- gsub(paste(c("부엌","키친",'주방'),collapse='|'), "주방", category2)
+category2 <- gsub(paste(c("발코니","베란다"),collapse='|'), "베란다", category2)
+
+pnt <- readLines('방.txt', encoding='UTF-8')
+pnt
+a <- grep(paste(pnt, collapse='|'), category2, value=T)
+head(a, 30)
+b <- table(a)
+head(b, 30) 
+x <- head(sort(b, decreasing=T), 15)
+x
+
+#웹으로 그리기
+wordcloud2(x, gridSize=0.5, size=1, shape='circle')
+#R로 그리기
+palete <- brewer.pal(7, 'Set2')
+wordcloud(names(x), freq=x, scale=c(5, 2), rot.per=0.25, min.freq=3, 
+random.order=F, random.color=T, colors=palete)
+
+getwd( )
+savePlot("방_워드클라우드.png" , type="png")
+============================================
+#가구
+dat5 <- lapply(data4, function(x) {gsub(paste(c('벽지','시트지'), collapse = '|'), '벽지',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('무타공','무타'), collapse = '|'), '무타공',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('인테리어','인테리'), collapse = '|'), '인테리어',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('10평미', '10평미만'), collapse = '|'), '10평미만',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('10', '10평', '10평대'), collapse = '|'), '10평대',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('20', '20평', '20평대'), collapse = '|'), '20평대',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('30', '30평', '30평대'), collapse = '|'), '30평대',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('40', '40평', '40평대'), collapse = '|'), '40평대',x)})
+dat5 <- lapply(dat5, function(x) {gsub(paste(c('50', '50평', '50평대'), collapse = '|'), '50평대이상',x)})
+dat5 <- lapply(dat5, function(x) {gsub('10평대미만', '10평미만', x)})
+dat5 <- lapply(dat5, function(x) {gsub('10평대대', '10평대', x)})
+dat5 <- lapply(dat5, function(x) {gsub('20평대대', '20평대', x)})
+dat5 <- lapply(dat5, function(x) {gsub('30평대대', '30평대', x)})
+dat5 <- lapply(dat5, function(x) {gsub('40평대대', '40평대', x)})
+dat5 <- lapply(dat5, function(x) {gsub('50평대대', '50평대이상', x)})
+dat5 <- lapply(dat5, function(x) {gsub('ㅠ', '', x)})
+dat5 <- lapply(dat5, function(x) {gsub('ㅜ', '', x)})
+dat5 <- lapply(dat5, function(x) {gsub('ㅍ', '', x)})
+head(dat5, 150)
+
+# 2글자 ~ 8글자만빼고 모두 제거
+dat6 <- lapply(dat5, function(x) {Filter(function(y) {nchar(y) <= 8 && nchar(y) > 1 },x)})
+head(dat6, 150)
+
+#불용어 txt로 제거
+cantwrite <- readLines("cantwrite.txt", encoding='UTF-8')
+cnt_txt <- length(cantwrite)
+cnt_txt
+
+
+for(i in 1:cnt_txt) {
+dat7 <- lapply(dat6, function(x) {gsub(cantwrite[i], "", x)})}
+category1 <- unlist(dat7)
+head(category1, 10)
+
+
+category2 <- gsub('를', '', category1)
+category2 <- gsub(paste(c('ㅠ', 'ㅜ'), collapse='|'), '', category2)
+category2 <- gsub('어디', '', category2)
+category2 <- gsub('하려', '', category2)
+category2 <- gsub('이거', '', category2)
+category2 <- gsub('뭔가', '', category2)
+category2 <- gsub('잘아시는분', '', category2)
+category2 <- gsub(paste(c("인테리","인테리어"),collapse='|'), "인테리어", category2)
+category2 <- gsub('고민', '', category2)
+category2 <- gsub('해주', '', category2)
+category2 <- gsub('잘아시는분', '', category2)
+category2 <- gsub('도와주세요', '', category2)
+category2 <- gsub('문의', '', category2)
+category2 <- gsub('조언', '', category2)
+category2 <- gsub('위치', '', category2)
+category2 <- gsub('질문', '', category2)
+category2 <- gsub('잘아시는분', '', category2)
+category2 <- gsub('이요', '', category2)
+category2 <- gsub('부탁', '', category2)
+category2 <- gsub('드립', '', category2)
+category2 <- gsub('전문가','', category2)
+category2 <- gsub('때문', '',category2)
+category2 <- gsub('문제','', category2)
+category2 <- gsub('견적에문','', category2)
+category2 <- gsub(paste(c("책상","테이블"),collapse='|'), "책상", category2)
+category2 <- gsub(paste(c("캐비닛","캐비넷"),collapse='|'), "캐비넷", category2)
+category2 <- gsub(paste(c("커튼","커텐"),collapse='|'), "커튼", category2)
+category2 <- gsub(paste(c("탁상","탁자"),collapse='|'), "탁자", category2)
+category2 <- gsub(paste(c("프로젝터","빔프로젝터", "빔프로젝트", '빔프로젝터스크린', '빔스크린'),collapse='|'), "프로젝터", category2)
+category2 <- gsub(paste(c("프린트","프린터"),collapse='|'), "프린터", category2)
+category2 <- gsub(paste(c("서랍","서랍장"),collapse='|'), "서랍", category2)
+category2 <- gsub(paste(c("보일러","가스보일러"),collapse='|'), "보일러", category2)
+category2 <- gsub(paste(c("셋탑박스","셋톱박스"),collapse='|'), "셋탑박스", category2)
+category2 <- gsub(paste(c("쇼파","소파", '카우치'),collapse='|'), "소파", category2)
+category2 <- gsub(paste(c("싱크대","씽크대"),collapse='|'), "싱크대", category2)
+category2 <- gsub(paste(c("가림막","가벽"),collapse='|'), "가림막", category2)
+category2 <- gsub(paste(c("김치냉장고","김치"),collapse='|'), "김치냉장고", category2)
+category2 <- gsub(paste(c('비스포크', '비스포크냉장고'), collapse='|'), '비스포크냉장고', category2)
+category2 <- gsub(paste(c("전자레인지대","전자렌지대"),collapse='|'), "전자레인지대", category2)
+category2 <- gsub(paste(c("TV","텔레비전", "스마트tv", "티비"),collapse='|'), "TV", category2)
+category2 <- gsub(paste(c("캔들워머","워머"),collapse='|'), "캔들워머", category2)
+category2 <- gsub('주문','', category2)
+category2 <- gsub('수전','', category2)
+pnt <- readLines('가구.txt', encoding='UTF-8')
+a <- grep(paste(pnt, collapse='|'), category2, value=T)
+head(a, 10)
+b <- table(a)
+head(b, 10)
+x <- head(sort(b, decreasing=T), 80)
+x
+
+#웹으로 워드클라우드 그리기
+wordcloud2(x, gridSize=0.5, size=1, shape='circle')
+#r로 워드클라우드 그리기
+palete <- brewer.pal(7, 'Set2')
+wordcloud(names(x), freq=x, scale=c(5, 0.5), rot.per=0.25, min.freq=100, 
+random.order=F, random.color=T, colors=palete)
+
+
+getwd( )
+savePlot("가구_워드클라우드.png" , type="png")
