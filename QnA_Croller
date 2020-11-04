@@ -1,0 +1,195 @@
+#Step 1. 필요한 모듈과 라이브러리를 import 합니다
+
+from bs4 import BeautifulSoup
+from selenium import webdriver
+import time
+import sys
+import math
+import pandas as pd  
+import xlwt
+import random
+import os  
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.keys import Keys
+from datetime import timedelta
+import datetime
+
+#Step 2. 필요한 정보를 입력 받습니다
+query_txt = '오늘의집'#input('1.크롤링할 키워드는 무엇입니까?: ')
+
+cnt = int(input('2.크롤링 할 건수는 몇건입니까?: '))
+
+
+f_dir=input(' 파일이 저장될 경로만 쓰세요(기본경로 : c:\\temp\\ ) : ')
+if f_dir =='' :
+        f_dir = "c:\\temp\\"
+print('파일 이름은 "오늘의집"입니다')
+print('작업환경 크롬을 클릭해주세요!')
+#page_cnt = math.ceil(cnt / 5)  # 크롤링 할 전체 페이지 수 
+
+# 저장 환경 Setting
+now = time.localtime()
+s = '%04d-%02d-%02d-%02d-%02d-%02d' % (now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)
+s_time = time.time( )
+
+
+today = '%04d-%02d-%02d-%02d' % (now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour)
+d = datetime.datetime.strptime(today, '%Y-%m-%d-%H')
+
+os.chdir(f_dir)
+img_dir = f_dir+s+'-'+query_txt
+os.makedirs(img_dir)
+os.chdir(f_dir+s+'-'+query_txt)
+
+f_name=f_dir+s+'-'+query_txt+'\\'+s+'-'+query_txt+'.txt'
+fc_name=f_dir+s+'-'+query_txt+'\\'+s+'-'+query_txt+'.csv'  ###
+
+#Step 3. 크롬 드라이버를 사용해서 웹 브라우저를 실행합니다.
+try :
+    s_time = time.time( )
+    path = "c:/temp/chromedriver.exe"
+    driver = webdriver.Chrome(path)
+except :
+    print('크롬드라이버 위치를 확인해주세요!')
+
+driver.get('https://ohou.se/questions')
+driver.maximize_window() # 화면 최대화
+time.sleep(2)
+
+# Step 4. 사용자가 입력한 건수와 실제 검색 건수를 비교 후 동기화하기
+
+cnt2=0
+
+time.sleep(2)     # 페이지가 로딩 될 때까지 2초 기다립니다
+
+num = []          # 변수 초기화
+date1 = []
+subject= []
+hash = []
+no = 0
+x = 2
+z =0
+soup1 =''
+while True :
+    try:
+        time.sleep(3)
+        html = driver.page_source
+        soup = BeautifulSoup(html, 'html.parser')
+        search_cnt_1 = soup.select_one('#questions-list')
+        search_cnt_3 = search_cnt_1.select('time')
+        search_cnt_4 = search_cnt_1.select('ul.questions-item__footer__tags') # keyword-list
+        body = driver.find_element_by_css_selector('body')
+
+
+        for k in range(2) :
+            body.send_keys(Keys.PAGE_DOWN)    
+            time.sleep(0.2)
+
+        f = open(f_name, 'a',encoding='UTF-8')
+        search_cnt_2 = search_cnt_1.select('h1')
+        for i in range(len(search_cnt_2)) :
+            if soup == soup1 :
+                time.sleep(1)
+                html = driver.page_source
+                soup = BeautifulSoup(html, 'html.parser')
+                search_cnt_1 = soup.select_one('#questions-list')
+                search_cnt_3 = search_cnt_1.select('time')
+                search_cnt_4 = search_cnt_1.select('ul.questions-item__footer__tags')
+
+            if search_cnt_3[i].get_text().replace('\n', '').replace(' ', '') == '방금' :
+                date = d.strftime('%Y.%m.%d')
+            elif search_cnt_3[i].get_text().replace('\n', '').replace(' ', '')[-2:] == '간전' :
+                try :
+                    a = int(search_cnt_3[i].get_text().replace('\n', '').replace(' ', '')[:2])
+                except :
+                    a = int(search_cnt_3[i].get_text().replace('\n', '').replace(' ', '')[0])
+                    ex_date = d - timedelta(seconds=3600*a)
+                    date = ex_date.strftime('%Y.%m.%d')
+
+                else :
+                    ex_date = d - timedelta(seconds=3600*a)
+                    date = ex_date.strftime('%Y.%m.%d')
+
+            elif search_cnt_3[i].get_text().replace('\n', '').replace(' ', '')[-2:] == '분전' :
+                try :
+                    a = int(search_cnt_3[i].get_text().replace('\n', '').replace(' ', '')[:2])
+                except :
+                    a = int(search_cnt_3[i].get_text().replace('\n', '').replace(' ', '')[0])
+                    ex_date = d - timedelta(seconds=60*a)
+                    date = ex_date.strftime('%Y.%m.%d')
+
+                else :
+                    ex_date = d - timedelta(seconds=60*a)
+                    date = ex_date.strftime('%Y.%m.%d')
+
+
+            else :
+                date = search_cnt_3[i].get_text().replace('\n', '').replace(' ', '')
+
+
+            no += 1
+            print(date)
+            date1.append(date)
+            f.write(str(date))
+            f.write("\n")
+            print(no, search_cnt_2[i].get_text())
+            subject.append(search_cnt_2[i].get_text().replace('\n', '')) ###
+            print('해쉬태그 : ', search_cnt_4[i].get_text().replace('\n', '#')[:-1])
+            hash.append(search_cnt_4[i].get_text().replace('\n', '#')[:-1])
+            f.write(str(search_cnt_2[i].get_text()))
+            f.write(" ")
+            f.write(str(search_cnt_4[i].get_text().replace('\n', '#')[:-1]))
+            f.write("\n")
+
+        f.close
+        x += 1
+        if cnt == no :
+            driver.close()
+            break
+        time.sleep(1)
+        html = driver.page_source
+        soup1 = BeautifulSoup(html, 'html.parser')
+        if no % 50 == 0 :
+            driver.find_element_by_xpath('/html/body/main/div[1]/div[1]/nav/ul/li[12]/span').click()
+            x = 2
+
+        else :
+            time.sleep(0.5)
+            driver.find_element_by_xpath('//*[@id="questions-paginator"]/nav/ul/li[%s]' % x).click()
+    except :
+        tday = pd.DataFrame()
+        tday['날짜']=date1
+        tday['제목']=subject
+        tday['해쉬태그']=hash
+
+        # csv 형태로 저장하기
+        tday.to_csv(fc_name,encoding="utf-8-sig",index=False)
+
+        e_time = time.time( )
+        t_time = e_time - s_time
+        print('에러가 나서 저장을 하고 작업을 마칩니다.')
+        print('='*80)
+        print("총 소요시간은 약 %s 분 입니다 " % round((t_time/60),1))
+        print("파일 저장 완료: txt 파일명 : %s " %f_name)
+        print("파일 저장 완료: csv 파일명 : %s " %fc_name)
+        print('='*80)
+        z = 1
+        break
+
+if z == 0 :       
+    tday = pd.DataFrame()  ###
+    tday['날짜']=date1
+    tday['제목']=subject
+    tday['해쉬태그']=hash
+
+    # csv 형태로 저장하기
+    tday.to_csv(fc_name,encoding="utf-8-sig",index=False)
+
+    e_time = time.time( )
+    t_time = e_time - s_time
+    print('='*80)
+    print("총 소요시간은 약 %s 분 입니다 " % round((t_time/60),1))
+    print("파일 저장 완료: txt 파일명 : %s " %f_name)
+    print("파일 저장 완료: csv 파일명 : %s " %fc_name)
+    print('='*80)
+    #C:\jupyter_work\ -------- local 저장 경로
